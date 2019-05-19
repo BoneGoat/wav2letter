@@ -87,7 +87,7 @@ apt-get -y purge cmake && wget -qO- "https://cmake.org/files/v3.12/cmake-3.12.4-
     cd /tmp && git clone --recursive https://github.com/arrayfire/arrayfire.git && \
     cd arrayfire && git checkout v3.6.3 && \
     mkdir build && cd build && \
-    apt-get install ocl-icd-opencl-dev && \
+    DEBIAN_FRONTEND=noninteractive $APT_INSTALL ocl-icd-opencl-dev && \
     CXXFLAGS=-DOS_LNX cmake .. -DCMAKE_BUILD_TYPE=Release -DAF_BUILD_CPU=OFF -DAF_BUILD_OPENCL=OFF -DAF_BUILD_EXAMPLES=OFF && \
     make -j8 && \
     make install && \
