@@ -19,9 +19,9 @@
 #include "common/Transforms.h"
 #include "common/Utils.h"
 #include "criterion/criterion.h"
-#include "decoder/Decoder.hpp"
-#include "decoder/KenLM.hpp"
-#include "decoder/Trie.hpp"
+#include "decoder/KenLM.h"
+#include "decoder/Trie.h"
+#include "decoder/WordLMDecoder.h"
 #include "module/module.h"
 #include "runtime/Logger.h"
 #include "runtime/Serial.h"
@@ -36,6 +36,19 @@ using namespace w2l;
  * http://www.openslr.org/resources/11/3-gram.pruned.3e-7.arpa.gz
  * We pruned it so as to have much smaller size.
  */
+
+std::vector<int> tokens2Tensor(
+    const std::string& spelling,
+    const Dictionary& tokenDict) {
+  std::vector<int> ret;
+  ret.reserve(spelling.size());
+  auto tokens = wrd2Tkn(spelling);
+  for (const auto& tkn : tokens) {
+    ret.push_back(tokenDict.getIndex(tkn));
+  }
+  replaceReplabels(ret, FLAGS_replabel, tokenDict);
+  return ret;
+}
 
 TEST(DecoderTest, run) {
   FLAGS_criterion = kAsgCriterion;
@@ -148,17 +161,18 @@ TEST(DecoderTest, run) {
   /* -------- Build Decoder --------*/
   DecoderOptions decoder_opt(
       2500, // FLAGS_beamsize
-      100.0, // FLAGS_beamscore
+      100.0, // FLAGS_beamthreshold
       2.0, // FLAGS_lmweight
       2.0, // FLAGS_lexiconcore
       -std::numeric_limits<float>::infinity(), // FLAGS_unkweight
       false, // FLAGS_logadd
       -1, // FLAGS_silweight
-      ModelType::ASG);
+      CriterionType::ASG);
 
   std::shared_ptr<TrieLabel> unk =
       std::make_shared<TrieLabel>(unk_idx, wordDict.getIndex(kUnkToken));
-  Decoder decoder(decoder_opt, trie, lm, sil_idx, blank_idx, unk, transitions);
+  WordLMDecoder decoder(
+      decoder_opt, trie, lm, sil_idx, blank_idx, unk, transitions);
   LOG(INFO) << "[Decoder] Decoder constructed.\n";
 
   /* -------- Run --------*/
@@ -170,18 +184,17 @@ TEST(DecoderTest, run) {
 
   auto timer = fl::TimeMeter();
   timer.resume();
-  std::tie(score, wordPredictions, letterPredictions) =
-      decoder.decode(emission.data(), T, N);
+  auto results = decoder.decode(emission.data(), T, N);
   timer.stop();
 
-  int n_hyp = score.size();
+  int n_hyp = results.size();
 
   ASSERT_EQ(n_hyp, 877);
 
   std::vector<float> hypScoreTarget{
       -340.189, -340.415, -340.594, -340.653, -341.115};
   for (int i = 0; i < 5; i++) {
-    ASSERT_NEAR(score[i], hypScoreTarget[i], 1e-3);
+    ASSERT_NEAR(results[i].score_, hypScoreTarget[i], 1e-3);
   }
 }
 
