@@ -43,6 +43,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         # for libsndfile
         autoconf automake autogen build-essential libasound2-dev \
         libflac-dev libogg-dev libtool libvorbis-dev pkg-config python \
+        libopus0 opus-tools \
         # for Intel's Math Kernel Library (MKL)
         cpio \
         # FFTW
